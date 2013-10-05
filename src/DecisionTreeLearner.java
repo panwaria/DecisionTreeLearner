@@ -16,7 +16,7 @@ import java.util.ArrayList;
 	where,
 		train-set-file 	= Training Set Filename
 		test-set-file	= Test Set Filename
-		m	= a threshold value used as a stopping criteria
+		m				= threshold value used as a stopping criteria
 */
 
 public class DecisionTreeLearner
@@ -34,28 +34,34 @@ public class DecisionTreeLearner
 	    String testFilename  = args[1];
 	
 	    // Read examples from the files.
-	    ListOfExamples trainExamples = new ListOfExamples();
-	    ListOfExamples testExamples  = new ListOfExamples();
+	    DataSet trainDataSet = new DataSet();
+	    DataSet testDataSet  = new DataSet();
 	    
-	    if (!trainExamples.ReadInExamplesFromFile(trainFilename) ||
-	        !testExamples.ReadInExamplesFromFile(testFilename))
-		      System.exit(1);
+	    if (!trainDataSet.ReadInExamplesFromFile(trainFilename) || !testDataSet.ReadInExamplesFromFile(testFilename))
+	    {
+	    	System.err.println("Error: Not able to read the datasets.");
+	    	System.exit(1);
+	    }
 	    else
 	    { 
+	    	// TESTING THE DATA SETS
+	    	trainDataSet.DescribeDataset();
+	    	testDataSet.DescribeDataset();
+	    	
 	    	// SETTING DEFAULT LABEL
-	    	Feature outputLabel = trainExamples.getOutputLabel();
-	    	String defaultStr = trainExamples.MajorityValue(outputLabel);
+	    	Feature outputLabel = trainDataSet.getOutputLabel();
+	    	String defaultStr = trainDataSet.MajorityValue(outputLabel);
 	     	
 	    	// GETTING ALL FEATURES in an Arraylist<> where FeatureWithIndex = {Feature, Index}
 	    	ArrayList<FeatureWithIndex> features = new ArrayList<FeatureWithIndex>();
 	    	int i = 0;
-	    	for (Feature feature : trainExamples.getFeatures())
+	    	for (Feature feature : trainDataSet.getFeatures())
 	    	{
 	    		features.add(new FeatureWithIndex(feature, i++));
 	    	}
 	    	
 	    	// BUILDING DECISION TREE
-	    	root = BuildDecisionTree(features, trainExamples, defaultStr, outputLabel);
+	    	root = BuildDecisionTree(features, trainDataSet, defaultStr, outputLabel);
 	    	System.out.println("Decision Tree built!\n");
 	    	
 	    	// PRINTING DECISION TREE
@@ -64,7 +70,7 @@ public class DecisionTreeLearner
 	    	
 	    	// TESTING DECISION TREE
 	    	System.out.println("\n\n\nTesting Decision Tree\n---------------------\n");
-	    	Double accuracy = FindDTreeAccuracy(testExamples, root, outputLabel);
+	    	Double accuracy = FindDTreeAccuracy(testDataSet, root, outputLabel);
 	    }
 	}
   
@@ -77,7 +83,7 @@ public class DecisionTreeLearner
    * @param outputLabel	Set of labels
    * @return	Decision Tree Node
    */
-  public static DecisionTreeNode BuildDecisionTree(ArrayList<FeatureWithIndex> features, ListOfExamples examples, String defaultStr, Feature outputLabel)
+  public static DecisionTreeNode BuildDecisionTree(ArrayList<FeatureWithIndex> features, DataSet examples, String defaultStr, Feature outputLabel)
   {
 	  // NO EXAMPLES
 	  if(examples.size() == 0)	// Take the majority of the parent node (which is passed as default)
@@ -110,11 +116,11 @@ public class DecisionTreeLearner
 	  DecisionTreeNode node = new DecisionTreeNode(bestFeature);
 	  
 	  // For First Value
-	  ListOfExamples firstValueExamples = examples.examplesForFeatureFirstValue(bestFeature);
+	  DataSet firstValueExamples = examples.examplesForFeatureFirstValue(bestFeature);
 	  node.firstValueNode = BuildDecisionTree (newFeatures, firstValueExamples, majorityLabel, outputLabel);
 	  
 	  // For SecondValue
-	  ListOfExamples secondValueExamples = examples.examplesForFeatureSecondValue(bestFeature);
+	  DataSet secondValueExamples = examples.examplesForFeatureSecondValue(bestFeature);
 	  node.secondValueNode = BuildDecisionTree (newFeatures, secondValueExamples, majorityLabel, outputLabel);
 	  
 	  return node;

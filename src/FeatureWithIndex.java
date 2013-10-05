@@ -1,6 +1,6 @@
 /**
  *	Class to store a Feature with its index corresponding to the 
- *	BinaryFeature[] maintained in the ListOfExamples class.
+ *	BinaryFeature[] maintained in the DataSet class.
  */
 class FeatureWithIndex
 {
@@ -16,3 +16,5 @@ class FeatureWithIndex
 		this.index = i;
 	}
 }
+
+// TODO: Replace FeatureWithIndex with Feature, its constructor with Feature() contrcutor.
