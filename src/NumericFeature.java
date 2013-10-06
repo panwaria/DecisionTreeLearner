@@ -2,17 +2,27 @@
 
 public class NumericFeature extends Feature
 {
-	public int mThreshold;
+	private Double mThreshold;
 	
-	public NumericFeature(NumericFeature f, int threshold)
+	public NumericFeature(NumericFeature f, Double threshold)
 	{
 		super(f.getName(), f.getIndex(), f.getType());
-		mThreshold = threshold;
+		setThreshold(threshold);
 	}
 	
 	public NumericFeature(String name, int index)
 	{
 		super(name, index, TYPE_NUMERIC);
 		
+	}
+
+	public Double getThreshold()
+	{
+		return mThreshold;
+	}
+
+	public void setThreshold(Double threshold)
+	{
+		mThreshold = threshold;
 	}
 }

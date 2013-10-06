@@ -1,6 +1,8 @@
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Scanner;
 
 /* This class holds all of our examples  from one dataset
@@ -24,29 +26,158 @@ class DataSet extends ArrayList<Example>
 	// The number of mFeaturesArray per example in the dataset.
 	private int mNumFeatures = 0;
 
-	// The number of examples in the dataset.
-	private int mNumExamples = 0;
-
 	public DataSet() {}
+	
+	public DataSet(DataSet d)
+	{
+		this.mNumFeatures = d.mNumFeatures;
+		this.mFeatures = d.mFeatures;
+		this.mDataSetName = d.mDataSetName;
+		this.mRelationName = d.mRelationName;
+	}
+	
+	public ArrayList<Double> FindCandidateSplits(NumericFeature f)
+	{
+		if(size() == 0) return null;
+		
+//		SortedSet<Double> splitSortedList = new TreeSet<Double>();
+		ArrayList<Double> splitList = new ArrayList<Double>();
+		ArrayList<Example> sortedExampleList = new ArrayList<Example>(this);
+		
+		final int featureIndex = f.getIndex();
+		Collections.sort(sortedExampleList, new Comparator<Example>()
+		{
+			@Override
+			public int compare(Example e1, Example e2)
+			{
+				return (e1.get(featureIndex).compareTo(e2.get(featureIndex)));
+			}
+		});
+		
+		int outputIndex = getOutputIndex();
+		Example prevExample = sortedExampleList.get(0);
+		String prevOutputLabel = prevExample.get(outputIndex);
+		for(int i = 1; i < sortedExampleList.size(); i++)
+		{
+			Example curExample = sortedExampleList.get(i);
+			String currentOutputLabel = curExample.get(outputIndex);
+			if(!currentOutputLabel.equals(prevOutputLabel))
+			{
+				Double curVal =  Double.parseDouble(curExample.get(featureIndex));
+				Double prevVal = Double.parseDouble(prevExample.get(featureIndex));
+				Double threshold = (prevVal + curVal)/2;
+				
+				if(splitList.size() == 0 || splitList.get(splitList.size() - 1).compareTo(threshold) != 0)	// Ignore Repeated Threshold
+				{
+					splitList.add(threshold);
+				}
+			}
+		}
+		
+		return splitList;
+	}
+	
+	private Double CalculateInformationGain(DataSet[] dataSetArray)
+	{
+		Double infoGain = 0.0;
+		Double remainder = 0.0;
+		
+		DiscreteFeature outputFeature = getOutputFeature();
+		for(DataSet d : dataSetArray)
+		{
+			ArrayList<Integer> countArray = new ArrayList<Integer>();
+			for (String value : outputFeature.getValues())
+			{
+				countArray.add(d.getCountOfExamplesWithGivenOutputValue(value));
+			}
+			
+			remainder += (((double) d.size() / size()) * IFunc(countArray));
+		}
+		
+		// Calculate Information Gain
+		ArrayList<Integer> overallCountArray = new ArrayList<Integer>();
+		for (String value : outputFeature.getValues())
+		{
+			overallCountArray.add(getCountOfExamplesWithGivenOutputValue(value));
+		}
+		infoGain = IFunc(overallCountArray) - remainder;
+		
+		return infoGain;
+	}
+	
+	private Double CalculateInformationGainForNumericFeature(int featureIndex, Double threshold)
+	{
+		DataSet[] dataSetArray = ExamplesForNumericFeatureBranches(featureIndex, threshold);
+		return CalculateInformationGain(dataSetArray);
+	}
+	
+	private Double CalculateInformationGainForDiscreteFeature(int featureIndex)
+	{
+		DataSet[] dataSetArray = ExamplesForDiscreteFeatureBranches(featureIndex);
+		return CalculateInformationGain(dataSetArray);
+	}
 	
 	/**
 	 * Method to choose the best feature for the node in Decision Tree
 	 * 
-	 * @param mFeaturesArray
-	 *            List of mFeaturesArray
-	 * @param outputLabel
-	 *            Output Label
+	 * @param features	List of features
 	 * @return Best Feature
 	 */
-	public FeatureWithIndex ChooseBestFeature(ArrayList<FeatureWithIndex> features, Feature outputLabel)
+	public Feature ChooseBestFeature(ArrayList<Feature> features)	//, Feature outputLabel)
 	{
-		// FIND LEAST REMAINDER
-		// - If they match, Choose the feature alphabetically
-		Double minRemainder = 2.0;
-
-		FeatureWithIndex bestFeature = null;
-		for (FeatureWithIndex feature : features)
+//		Feature outputLabel = getOutputFeature();
+		
+		// FIND FEATURE WITH MAX INFORMATION GAIN
+		// 	- For Numeric Feature, find candidate splits and calculate Information Gain for every spilt
+		//	- If Information Gain Match, Choose feature with less index.
+		// 	- If Numeric Feature is the best feature, clone that feature and add a threshold to it.
+//		Double minRemainder = 2.0;
+		Feature bestFeature = null;
+		Double maxInfoGain = Double.MIN_VALUE;
+		
+		for (Feature feature : features)
 		{
+			
+			Double infoGain = 0.0;
+//			Double maxThreshold = Double.MIN_VALUE;
+					
+			if(feature.getType() == Feature.TYPE_NUMERIC)
+			{
+				// Find Candidate Splits
+				// For each candidate splits, find information gain.
+				ArrayList<Double> splitList = FindCandidateSplits((NumericFeature)feature);	// splitList is in ascending order of threshold value.
+				for (Double threshold : splitList)
+				{
+					infoGain = CalculateInformationGainForNumericFeature(feature.getIndex(), threshold);
+					
+					if(infoGain.compareTo(maxInfoGain) > 0)
+					{
+						maxInfoGain = infoGain;
+						Feature f = new NumericFeature((NumericFeature)feature, threshold);
+						bestFeature = f;	// feature should have threshold set up, if it's Numeric feature.
+					}
+				}
+			}
+			else	// Discrete Valued Feature
+			{
+				infoGain = CalculateInformationGainForDiscreteFeature(feature.getIndex());
+				
+				if(infoGain.compareTo(maxInfoGain) == 0 && feature.getIndex() < bestFeature.getIndex())
+				{
+					bestFeature = feature;
+				}
+				else if(infoGain.compareTo(maxInfoGain) > 0)
+				{
+					maxInfoGain = infoGain;
+					bestFeature = feature;	// feature should have threshold set up, if it's Numeric feature.
+				}
+			}
+			
+		}
+		
+		return bestFeature;
+			
+			/*
 			DataSet firstValueExamples = examplesForFeatureFirstValue(feature);
 			long firstValueFirstLabelExampleCount = firstValueExamples
 					.FirstValueCount(outputLabel);
@@ -70,8 +201,8 @@ class DataSet extends ArrayList<Example>
 			if (tempRemainder.compareTo(minRemainder) == 0)
 			{
 				// Choose feature alphabetically - feature and the bestFeature
-				int result = bestFeature.f.getName().compareTo(
-						feature.f.getName());
+				int result = bestFeature.getName().compareTo(
+						feature.getName());
 				if (result > 0) // i.e. feature is alphabetically smaller than
 								// bestFeature.
 					bestFeature = feature;
@@ -85,6 +216,7 @@ class DataSet extends ArrayList<Example>
 		}
 
 		return bestFeature;
+		*/
 	}
 
 	/**
@@ -103,10 +235,53 @@ class DataSet extends ArrayList<Example>
 		if (firstFraction != 0)
 			result += -(firstFraction * (Math.log(firstFraction) / Math.log(2)));
 		if (secondFraction != 0)
-			result += -(secondFraction * (Math.log(secondFraction) / Math
-					.log(2)));
+			result += -(secondFraction * (Math.log(secondFraction) / Math.log(2)));
 
 		return result;
+	}
+	
+	public Double IFunc(ArrayList<Integer> countArray)
+	{
+		long total = 0;
+		
+		for (Integer count : countArray)
+			total += count;
+		
+		if(total == 0) return 0.0;
+		
+		Double result = 0.0;
+		for (Integer count : countArray)
+		{
+			Double fraction = ((double) count) / total;
+			if (fraction != 0)
+				result += -(fraction * (Math.log(fraction) / Math.log(2)));
+		}
+		
+		return result;
+	}
+	
+	int getOutputIndex()
+	{
+		return mNumFeatures - 1;
+	}
+	
+	public DiscreteFeature getOutputFeature()
+	{
+		return (DiscreteFeature) mFeatures.get(getOutputIndex());
+	}
+	
+	public int getCountOfExamplesWithGivenOutputValue(String value)
+	{
+		int index = getOutputIndex();
+		int count = 0;
+		
+		for (int i = 0; i < size(); i++)
+		{
+			if(this.get(i).get(index).equals(value))
+				count++;				
+		}
+		
+		return count;
 	}
 
 	/**
@@ -116,22 +291,16 @@ class DataSet extends ArrayList<Example>
 	 *            Output Label
 	 * @return Majority Label
 	 */
-	public String MajorityValue(Feature f)
+	public String MajorityValue()
 	{
-		int index = f.getIndex();
+		DiscreteFeature outputLabel = getOutputFeature();
 		String majValue = "";
 		int count, maxCount = -1;
 		
 		System.out.println("Data Set = " + mDataSetName);
-		for (String value : ((DiscreteFeature)f).getValues())
+		for (String value : outputLabel.getValues())
 		{
-			count = 0;
-			for (int i = 0; i < size(); i++)
-			{
-				if(this.get(i).get(index).equals(value))
-					count++;				
-			}
-
+			count = getCountOfExamplesWithGivenOutputValue(value);
 	    	System.out.println("Label = " + value + "\tCount = " + count);
 	    	
 			if(count > maxCount)
@@ -160,29 +329,34 @@ class DataSet extends ArrayList<Example>
 	 *            Output Label
 	 * @return Label, if it is all over the examples, else null.
 	 */
-	public String isSameClassification(Feature outputLabel)
+	public String isSameClassification()
 	{
-		if (size() == 0) return null;
-
-		long firstValueCount = FirstValueCount(outputLabel);
-		long secondValueCount = size() - firstValueCount;
-
-		if (firstValueCount == size())
-			return outputLabel.getFirstValue();
-
-		else if (secondValueCount == size())
-			return outputLabel.getSecondValue();
-
+		int numExamples = size();
+		if (numExamples == 0) return null;
+		
+		Feature f = getOutputFeature();
+		
+		for (String value : ((DiscreteFeature)f).getValues())
+		{
+			int count = getCountOfExamplesWithGivenOutputValue(value);
+	    	System.out.println("Label = " + value + "\tCount = " + count);
+	    	
+			if(count < numExamples && count > 0)
+				return null;
+			else if(count == numExamples)
+				return value;
+		}
+		
 		return null;
 	}
-
+	
 	// Print out a high-level description of the dataset including its mFeaturesArray.
 	public void DescribeDataset()
 	{
 		System.out.println( "=====================================================================" +
 							"\nDataset File:\t'" + mDataSetName + "' " +
 							"\nRelation Name:\t '" + mRelationName + "' " +
-							"\nDataset contains " + mNumExamples + " examples, each with " + mNumFeatures + " features.");
+							"\nDataset contains " + size() + " examples, each with " + mNumFeatures + " features.");
 		
 		System.out.println("The feature names (with their possible values) are:");
 		for (int i = 0; i < mNumFeatures; i++)
@@ -269,6 +443,7 @@ class DataSet extends ArrayList<Example>
 	public void parse(Scanner fileScanner)
 	{
 		boolean parseExamplesNow = false;
+		int examplesCount = 0;
 		
 		// Parse whole file
 		while (fileScanner.hasNextLine())
@@ -288,14 +463,14 @@ class DataSet extends ArrayList<Example>
 					continue;
 				}
 				
-				Example e = new Example(this, mNumExamples);
+				Example e = new Example(this, examplesCount);
 				for (String part : parts)
 				{
 					e.addFeatureValue(part);
 				}
 				this.add(e);
 				
-				mNumExamples++;
+				examplesCount++;
 			}
 			else if(line.startsWith("@relation"))	// Relation Name
 			{
@@ -359,6 +534,60 @@ class DataSet extends ArrayList<Example>
 		if (line.length() == 0 || (line.length() > 2 && line.substring(0, 2).equals("//")))	return false;
 
 		return true;
+	}
+	
+	public DataSet[] ExamplesForNumericFeatureBranches(int featureIndex, Double threshold)
+	{
+		Feature f = mFeatures.get(featureIndex);
+		if(threshold == null || f == null || f.getType() != Feature.TYPE_NUMERIC) return null;
+		
+		DataSet[] dataSetArray = new DataSet[2]; // DataSet[0] : Less-Than-EqualTo Examples, and DataSet[1] : More than Examples
+		for (int i = 0; i < dataSetArray.length; i++)
+			dataSetArray[i] = new DataSet(this);
+		
+		for (int i = 0; i < size(); i++)
+		{
+			Example e = get(i);
+			
+//			System.out.println("FeatureValueinExample = " + e.get(featureIndex) + "\tThreshold=" + threshold);
+			
+			Double value = Double.parseDouble(e.get(featureIndex));
+			
+			if (value.compareTo(threshold) <= 0)
+				dataSetArray[0].add(e);
+			else
+				dataSetArray[1].add(e);
+		}
+		
+		return dataSetArray;
+	}
+	
+	public DataSet[] ExamplesForDiscreteFeatureBranches(int featureIndex)
+	{
+		Feature f = mFeatures.get(featureIndex);
+		
+		if(f == null || f.getType() != Feature.TYPE_DISCRETE) return null;
+		
+		DiscreteFeature df = (DiscreteFeature) f;
+		int numValues = df.getNumValues();
+		
+		DataSet[] dataSetArray = new DataSet[numValues]; // Getting examples for all the branches.
+		for (int i = 0; i < dataSetArray.length; i++)
+			dataSetArray[i] = new DataSet(this);
+		
+		for (int i = 0; i < size(); i++)
+		{
+			Example e = get(i);
+			String value = e.get(featureIndex);
+			
+			for (int j = 0; j < numValues; j++)
+			{
+				if(value.equals(df.getValues().get(j)))
+					dataSetArray[j].add(e);
+			}
+		}
+		
+		return dataSetArray;
 	}
 	
 	/**
@@ -486,20 +715,20 @@ class DataSet extends ArrayList<Example>
 	 *            Feature
 	 * @return List of matching examples
 	 */
-	DataSet examplesForFeatureFirstValue(FeatureWithIndex f)
+	DataSet examplesForFeatureFirstValue(Feature f)
 	{
 		DataSet subListOfExamples = new DataSet();
 
 		if (f == null) return subListOfExamples;
 
-		for (int i = 0; i < mNumExamples; i++)
+		for (int i = 0; i < size(); i++)
 		{
 			Example e = get(i);
-			if (e.get(f.index).equals(f.f.getFirstValue()))
+			if (e.get(f.getIndex()).equals(f.getFirstValue()))
 				subListOfExamples.add(e);
 		}
 
-		subListOfExamples.mNumExamples = subListOfExamples.size();
+//		subListOfExamples.mNumExamples = subListOfExamples.size();
 		return subListOfExamples;
 	}
 
@@ -511,20 +740,20 @@ class DataSet extends ArrayList<Example>
 	 *            Feature
 	 * @return List of matching examples
 	 */
-	DataSet examplesForFeatureSecondValue(FeatureWithIndex f)
+	DataSet examplesForFeatureSecondValue(Feature f)
 	{
 		DataSet subListOfExamples = new DataSet();
 
 		if (f == null) return subListOfExamples;
 
-		for (int i = 0; i < mNumExamples; i++)
+		for (int i = 0; i < size(); i++)
 		{
 			Example e = get(i);
-			if (e.get(f.index).equals(f.f.getSecondValue()))
+			if (e.get(f.getIndex()).equals(f.getSecondValue()))
 				subListOfExamples.add(e);
 		}
 
-		subListOfExamples.mNumExamples = subListOfExamples.size();
+//		subListOfExamples.mNumExamples = subListOfExamples.size();
 		return subListOfExamples;
 	}
 
@@ -551,13 +780,97 @@ class DataSet extends ArrayList<Example>
 	// An array of the parsed mFeaturesArray in the data.
 	private Feature[] mFeaturesArray;
 
-	// A binary feature representing the output label of the dataset.
-	private Feature outputLabel;
+//	// A binary feature representing the output label of the dataset.
+//	private Feature outputLabel;
 
-	public Feature getOutputLabel()
+//	// The number of examples in the dataset.
+//	private int mNumExamples = 0;
+	
+//	public Feature getOutputLabel()
+//	{
+//		return mFeatures.get(mNumFeatures - 1);
+////		return outputLabel;
+//	}
+	
+	// TODO : Remove
+	/*
+	public String isSameClassification(Feature outputLabel)
 	{
-		return mFeatures.get(mNumFeatures - 1);
-//		return outputLabel;
-	}
+		if (size() == 0) return null;
 
+		long firstValueCount = FirstValueCount(outputLabel);
+		long secondValueCount = size() - firstValueCount;
+
+		if (firstValueCount == size())
+			return outputLabel.getFirstValue();
+
+		else if (secondValueCount == size())
+			return outputLabel.getSecondValue();
+
+		return null;
+	}
+	*/
+	
+	
+	/**
+	 * Method to choose the best feature for the node in Decision Tree
+	 * 
+	 * @param mFeaturesArray
+	 *            List of mFeaturesArray
+	 * @param outputLabel
+	 *            Output Label
+	 * @return Best Feature
+	 */
+	/*
+	public Feature ChooseBestFeature(ArrayList<Feature> features)	//, Feature outputLabel)
+	{
+		Feature outputLabel = getOutputFeature();
+		
+		// FIND LEAST REMAINDER
+		// - If they match, Choose the feature alphabetically
+		Double minRemainder = 2.0;
+
+		Feature bestFeature = null;
+		for (Feature feature : features)
+		{
+			DataSet firstValueExamples = examplesForFeatureFirstValue(feature);
+			long firstValueFirstLabelExampleCount = firstValueExamples
+					.FirstValueCount(outputLabel);
+			long firstValueSecondLabelExampleCount = firstValueExamples.size()
+					- firstValueFirstLabelExampleCount;
+
+			DataSet secondValueExamples = examplesForFeatureSecondValue(feature);
+			long secondValueFirstLabelExampleCount = secondValueExamples
+					.FirstValueCount(outputLabel);
+			long secondValueSecondLabelExampleCount = secondValueExamples
+					.size() - secondValueFirstLabelExampleCount;
+
+			// Calculate the Remainder value of the feature.
+			Double tempRemainder = (((double) firstValueExamples.size() / size()) * IFunc(
+					firstValueFirstLabelExampleCount,
+					firstValueSecondLabelExampleCount))
+					+ (((double) secondValueExamples.size() / size()) * IFunc(
+							secondValueFirstLabelExampleCount,
+							secondValueSecondLabelExampleCount));
+
+			if (tempRemainder.compareTo(minRemainder) == 0)
+			{
+				// Choose feature alphabetically - feature and the bestFeature
+				int result = bestFeature.getName().compareTo(
+						feature.getName());
+				if (result > 0) // i.e. feature is alphabetically smaller than
+								// bestFeature.
+					bestFeature = feature;
+			}
+			else if (tempRemainder.compareTo(minRemainder) < 0)
+			{
+				// Update the best feature
+				minRemainder = tempRemainder;
+				bestFeature = feature;
+			}
+		}
+
+		return bestFeature;
+	}
+	*/
 }

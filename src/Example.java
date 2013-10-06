@@ -47,7 +47,7 @@ class Example extends ArrayList<String>
 
 	public String getLabel()
 	{
-		return label;
+		return get(parent.getOutputIndex());//label;
 	}
 
 	// Mutator methods.
