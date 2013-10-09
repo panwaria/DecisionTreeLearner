@@ -3,18 +3,23 @@ import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Scanner;
 
-/* This class holds all of our examples  from one dataset
- (train OR test, not BOTH).  It extends the ArrayList class.
- Be sure you're not confused.  We're using TWO types of ArrayLists.  
- An Example is an ArrayList of feature values, while a DataSet is 
- an ArrayList of examples. Also, there is one DataSet for the 
- TRAINING SET and one for the TESTING SET. 
+/**
+ * Class to represent set of examples. It can be any kind of data 
+ * set - training data set, test data set, etc.
+ * 
+ * @author Prakhar
+ * @date 10/05/2013
+ * @hw 1
  */
 
 class DataSet extends ArrayList<Example>
 {
+	private static final long serialVersionUID = 1L;
+
 	// The name of the dataset.
 	private String mDataSetName = "";
 	
@@ -40,7 +45,6 @@ class DataSet extends ArrayList<Example>
 	{
 		if(size() == 0) return null;
 		
-//		SortedSet<Double> splitSortedList = new TreeSet<Double>();
 		ArrayList<Double> splitList = new ArrayList<Double>();
 		ArrayList<Example> sortedExampleList = new ArrayList<Example>(this);
 		
@@ -53,8 +57,58 @@ class DataSet extends ArrayList<Example>
 				return (e1.get(featureIndex).compareTo(e2.get(featureIndex)));
 			}
 		});
-		
+
 		int outputIndex = getOutputIndex();
+		LinkedHashMap<String, String> groupLabelMap = new LinkedHashMap<String, String>();
+		for (Example e : sortedExampleList)
+		{
+			String curFeatureValue = e.get(featureIndex);
+			if(groupLabelMap.containsKey(curFeatureValue))
+			{
+				String storedGroupLabel = groupLabelMap.get(curFeatureValue);
+				if(!storedGroupLabel.equals(e.get(outputIndex)))
+				{
+					groupLabelMap.put(curFeatureValue, "null");
+				}
+			}
+			else
+				groupLabelMap.put(curFeatureValue, e.get(outputIndex));
+		}
+		
+//		System.out.println("################################# FeatureName:" + f.getName() + " GroupLabelMap.size() : " + groupLabelMap.size());
+		int i = 0;
+		String prevGroupLabel = "";
+		Double prevVal = 0.0;
+		for (Map.Entry<String, String> entry : groupLabelMap.entrySet())
+		{
+			if(i == 0)
+			{
+				prevVal = Double.parseDouble(entry.getKey());
+				prevGroupLabel = entry.getValue();
+				i++;
+				continue;
+			}
+
+			Double curVal =  Double.parseDouble(entry.getKey());
+			String curGroupLabel = entry.getValue();
+			
+			if(prevGroupLabel.equals("null") || !curGroupLabel.equals(prevGroupLabel))
+			{
+				// Calculate threshold as the mid point.
+				Double threshold = (prevVal + curVal)/2;
+				splitList.add(threshold);
+			}
+			
+			prevVal = curVal;
+			prevGroupLabel = curGroupLabel;
+			
+			i++;
+//		    System.out.println(entry.getKey() + " --> " + entry.getValue());
+		}
+//		System.out.println("#################################");
+		
+		/*
+		// Splitting everytime we see the change in labels in the sorted examples list.
 		Example prevExample = sortedExampleList.get(0);
 		String prevOutputLabel = prevExample.get(outputIndex);
 		for(int i = 1; i < sortedExampleList.size(); i++)
@@ -63,6 +117,7 @@ class DataSet extends ArrayList<Example>
 			String currentOutputLabel = curExample.get(outputIndex);
 			if(!currentOutputLabel.equals(prevOutputLabel))
 			{
+				// Finding midpoint
 				Double curVal =  Double.parseDouble(curExample.get(featureIndex));
 				Double prevVal = Double.parseDouble(prevExample.get(featureIndex));
 				Double threshold = (prevVal + curVal)/2;
@@ -72,7 +127,11 @@ class DataSet extends ArrayList<Example>
 					splitList.add(threshold);
 				}
 			}
+			
+			prevExample = curExample;
+			prevOutputLabel = currentOutputLabel;
 		}
+	   */
 		
 		return splitList;
 	}
@@ -297,11 +356,11 @@ class DataSet extends ArrayList<Example>
 		String majValue = "";
 		int count, maxCount = -1;
 		
-		System.out.println("Data Set = " + mDataSetName);
+//		System.out.println("Data Set = " + mDataSetName + " DataSetSize =" + size() + " #OutputLabels=" + outputLabel.getNumValues());
 		for (String value : outputLabel.getValues())
 		{
 			count = getCountOfExamplesWithGivenOutputValue(value);
-	    	System.out.println("Label = " + value + "\tCount = " + count);
+//	    	System.out.println("Label = " + value + "\tCount = " + count);
 	    	
 			if(count > maxCount)
 			{
@@ -311,15 +370,6 @@ class DataSet extends ArrayList<Example>
 		}
 		
 		return majValue;
-//			
-//		long firstValueCount = FirstValueCount(outputLabel);
-//		long secondValueCount = size() - firstValueCount;
-//
-//		if (firstValueCount == secondValueCount)
-//			return outputLabel.getSecondValue();
-//		else
-//			return (firstValueCount > secondValueCount) ? outputLabel
-//					.getFirstValue() : outputLabel.getSecondValue();
 	}
 
 	/**
@@ -339,7 +389,6 @@ class DataSet extends ArrayList<Example>
 		for (String value : ((DiscreteFeature)f).getValues())
 		{
 			int count = getCountOfExamplesWithGivenOutputValue(value);
-	    	System.out.println("Label = " + value + "\tCount = " + count);
 	    	
 			if(count < numExamples && count > 0)
 				return null;
@@ -590,287 +639,25 @@ class DataSet extends ArrayList<Example>
 		return dataSetArray;
 	}
 	
-	/**
-	 * Returns the first token encountered on a significant line in the file.
-	 * 
-	 * @param fileScanner
-	 *            a Scanner used to read the file.
-	 */
-	/*
-	private String parseSingleToken(Scanner fileScanner)
+	public int[] getBreakUpOfOutputValues()
 	{
-		String line = findSignificantLine(fileScanner);
-
-		// Once we find a significant line, parse the first token on the
-		// line and return it.
-		Scanner lineScanner = new Scanner(line);
-		return lineScanner.next();
-	}
-	*/
-	/**
-	 * Reads in the feature metadata from the file.
-	 * 
-	 * @param fileScanner
-	 *            a Scanner used to read the file.
-	 */
-	/*
-	private void parseFeatures(Scanner fileScanner)
-	{
-		// Initialize the array of mFeaturesArray to fill.
-		mFeaturesArray = new Feature[mNumFeatures];
-
-		for (int i = 0; i < mNumFeatures; i++)
-		{
-			String line = findSignificantLine(fileScanner);
-
-			// Once we find a significant line, read the feature description
-			// from it.
-			Scanner lineScanner = new Scanner(line);
-			String name = lineScanner.next();
-			String dash = lineScanner.next(); // Skip the dash in the file.
-			String firstValue = lineScanner.next();
-			String secondValue = lineScanner.next();
-			mFeaturesArray[i] = new Feature(name, firstValue, secondValue);
-		}
-	}
-	*/
-
-	/*
-	private void parseExamples(Scanner fileScanner)
-	{
-		// Parse the expected number of examples.
-		for (int i = 0; i < mNumExamples; i++)
-		{
-			String line = findSignificantLine(fileScanner);
-			Scanner lineScanner = new Scanner(line);
-
-			// Parse a new example from the file.
-			Example ex = new Example(this, i);
-
-			// String name = lineScanner.next();
-			ex.setIndex(i);
-
-			// String label = lineScanner.next();
-			// ex.setLabel(label);
-
-			// Iterate through the mFeaturesArray and increment the count for any
-			// feature that has the first possible value.
-			for (int j = 0; j < mNumFeatures; j++)
-			{
-				String feature = lineScanner.next();
-				ex.addFeatureValue(feature);
-			}
-
-			lineScanner.close();
-
-			// Add this example to the list.
-			this.add(ex);
-		}
-	}
-	*/
-
-	/**
-	 * Returns the next line in the file which is significant (i.e. is not all
-	 * whitespace or a comment.
-	 * 
-	 * @param fileScanner
-	 *            a Scanner used to read the file
-	 */
-	/*
-	private String findSignificantLine(Scanner fileScanner)
-	{
-		// Keep scanning lines until we find a significant one.
-		while (fileScanner.hasNextLine())
-		{
-			String line = fileScanner.nextLine().trim();
-			if (isLineSignificant(line))
-			{
-				return line;
-			}
-		}
-
-		// If the file is in proper format, this should never happen.
-		System.err.println("Unexpected problem in findSignificantLine.");
-
-		return null;
-	}
-	*/
-
-	public String getFeatureFirstValue(int i)
-	{
-		return mFeaturesArray[i].getFirstValue();
-	}
-
-	public String getFeatureSecondValue(int i)
-	{
-		return mFeaturesArray[i].getSecondValue();
-	}
-
-
-	/**
-	 * Method to return the list of examples where value of the feature F it
-	 * equal to its first value.
-	 * 
-	 * @param f
-	 *            Feature
-	 * @return List of matching examples
-	 */
-	DataSet examplesForFeatureFirstValue(Feature f)
-	{
-		DataSet subListOfExamples = new DataSet();
-
-		if (f == null) return subListOfExamples;
-
-		for (int i = 0; i < size(); i++)
-		{
-			Example e = get(i);
-			if (e.get(f.getIndex()).equals(f.getFirstValue()))
-				subListOfExamples.add(e);
-		}
-
-//		subListOfExamples.mNumExamples = subListOfExamples.size();
-		return subListOfExamples;
-	}
-
-	/**
-	 * Method to return the list of examples where value of the feature F it
-	 * equal to its second value.
-	 * 
-	 * @param f
-	 *            Feature
-	 * @return List of matching examples
-	 */
-	DataSet examplesForFeatureSecondValue(Feature f)
-	{
-		DataSet subListOfExamples = new DataSet();
-
-		if (f == null) return subListOfExamples;
-
-		for (int i = 0; i < size(); i++)
-		{
-			Example e = get(i);
-			if (e.get(f.getIndex()).equals(f.getSecondValue()))
-				subListOfExamples.add(e);
-		}
-
-//		subListOfExamples.mNumExamples = subListOfExamples.size();
-		return subListOfExamples;
-	}
-
-	/**
-	 * Method to calculate the number of examples matching the first label.
-	 * 
-	 * @param outputLabel
-	 *            Output Label
-	 * @return Count of the matching examples
-	 */
-	public long FirstValueCount(Feature outputLabel)
-	{
-		long firstValueCount = 0;
-		for (int i = 0; i < size(); i++)
-		{
-			Example thisExample = this.get(i);
-			if (thisExample.getLabel().equals(outputLabel.getFirstValue()))
-				firstValueCount++;
-		}
-
-		return firstValueCount;
-	}
-
-	// An array of the parsed mFeaturesArray in the data.
-	private Feature[] mFeaturesArray;
-
-//	// A binary feature representing the output label of the dataset.
-//	private Feature outputLabel;
-
-//	// The number of examples in the dataset.
-//	private int mNumExamples = 0;
-	
-//	public Feature getOutputLabel()
-//	{
-//		return mFeatures.get(mNumFeatures - 1);
-////		return outputLabel;
-//	}
-	
-	// TODO : Remove
-	/*
-	public String isSameClassification(Feature outputLabel)
-	{
-		if (size() == 0) return null;
-
-		long firstValueCount = FirstValueCount(outputLabel);
-		long secondValueCount = size() - firstValueCount;
-
-		if (firstValueCount == size())
-			return outputLabel.getFirstValue();
-
-		else if (secondValueCount == size())
-			return outputLabel.getSecondValue();
-
-		return null;
-	}
-	*/
-	
-	
-	/**
-	 * Method to choose the best feature for the node in Decision Tree
-	 * 
-	 * @param mFeaturesArray
-	 *            List of mFeaturesArray
-	 * @param outputLabel
-	 *            Output Label
-	 * @return Best Feature
-	 */
-	/*
-	public Feature ChooseBestFeature(ArrayList<Feature> features)	//, Feature outputLabel)
-	{
-		Feature outputLabel = getOutputFeature();
+		Feature f = getOutputFeature();
+		int numOutputValues = ((DiscreteFeature)f).getNumValues();
 		
-		// FIND LEAST REMAINDER
-		// - If they match, Choose the feature alphabetically
-		Double minRemainder = 2.0;
-
-		Feature bestFeature = null;
-		for (Feature feature : features)
+		int[] countArray = new int [numOutputValues];
+		for (int i = 0; i < numOutputValues; i++)
+			countArray[i] = 0;
+		
+		int numExamples = size();
+		if (numExamples == 0) return countArray;
+		
+		int i = 0;
+		for (String value : ((DiscreteFeature)f).getValues())
 		{
-			DataSet firstValueExamples = examplesForFeatureFirstValue(feature);
-			long firstValueFirstLabelExampleCount = firstValueExamples
-					.FirstValueCount(outputLabel);
-			long firstValueSecondLabelExampleCount = firstValueExamples.size()
-					- firstValueFirstLabelExampleCount;
-
-			DataSet secondValueExamples = examplesForFeatureSecondValue(feature);
-			long secondValueFirstLabelExampleCount = secondValueExamples
-					.FirstValueCount(outputLabel);
-			long secondValueSecondLabelExampleCount = secondValueExamples
-					.size() - secondValueFirstLabelExampleCount;
-
-			// Calculate the Remainder value of the feature.
-			Double tempRemainder = (((double) firstValueExamples.size() / size()) * IFunc(
-					firstValueFirstLabelExampleCount,
-					firstValueSecondLabelExampleCount))
-					+ (((double) secondValueExamples.size() / size()) * IFunc(
-							secondValueFirstLabelExampleCount,
-							secondValueSecondLabelExampleCount));
-
-			if (tempRemainder.compareTo(minRemainder) == 0)
-			{
-				// Choose feature alphabetically - feature and the bestFeature
-				int result = bestFeature.getName().compareTo(
-						feature.getName());
-				if (result > 0) // i.e. feature is alphabetically smaller than
-								// bestFeature.
-					bestFeature = feature;
-			}
-			else if (tempRemainder.compareTo(minRemainder) < 0)
-			{
-				// Update the best feature
-				minRemainder = tempRemainder;
-				bestFeature = feature;
-			}
+			countArray[i++] = getCountOfExamplesWithGivenOutputValue(value);
 		}
-
-		return bestFeature;
+		
+		return countArray;
 	}
-	*/
+
 }

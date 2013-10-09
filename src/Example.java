@@ -1,11 +1,16 @@
 import java.util.ArrayList;
 
-// This class, an extension of ArrayList, holds an individual example.
-// The new method PrintFeatures() can be used to
-// display the contents of the example. 
-// The items in the ArrayList are the feature values.
-class Example extends ArrayList<String>
+/**
+ * Class to represent an example from the data set.
+ * 
+ * @author Prakhar
+ * @hw 1
+ */
+
+public class Example extends ArrayList<String>
 {
+	private static final long serialVersionUID = 1L;
+
 	// The index of this example.
 	private int index;
 
@@ -39,7 +44,6 @@ class Example extends ArrayList<String>
 		this.add(value);
 	}
 
-	// Accessor methods.
 	public int getName()
 	{
 		return index;
@@ -47,10 +51,9 @@ class Example extends ArrayList<String>
 
 	public String getLabel()
 	{
-		return get(parent.getOutputIndex());//label;
+		return get(parent.getOutputIndex());
 	}
 
-	// Mutator methods.
 	public void setIndex(int i)
 	{
 		this.index = i;

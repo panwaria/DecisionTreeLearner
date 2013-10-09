@@ -1,7 +1,7 @@
 import java.util.ArrayList;
 
 /**
- * Class DecisionTreeLearner
+ * Main class which learns the Decision Tree.
  * 
  * @author Prakhar Panwaria
  * @date 10/05/2013
@@ -14,8 +14,9 @@ import java.util.ArrayList;
  * Program accept three command-line arguments as follows: dt-learn
  * <train-set-file> <test-set-file> m
  * 
- * where, train-set-file = Training Set Filename test-set-file = Test Set
- * Filename m = threshold value used as a stopping criteria
+ * where, train-set-file = Training Set Filename,
+ * 		  test-set-file = Test Set Filename,
+ * 		  m = threshold value used as a stopping criteria
  */
 
 public class DecisionTreeLearner
@@ -61,52 +62,135 @@ public class DecisionTreeLearner
 		}
 		else
 		{
-			// TESTING THE DATA SETS
-//			trainDataSet.DescribeDataset();
-//			testDataSet.DescribeDataset();
-
-			// SETTING DEFAULT LABEL
-			Feature outputLabel = trainDataSet.getOutputFeature();
-			String defaultStr = trainDataSet.MajorityValue();// (outputLabel);
-
-			// GETTING ALL FEATURES
-			ArrayList<Feature> features = new ArrayList<Feature>(trainDataSet.getFeatures());
-			features.remove(features.size() - 1);	// Removing the output feature from the list.
-
-			// BUILDING DECISION TREE
-			root = BuildDecisionTree(features, trainDataSet, defaultStr, stoppingThreshold);// outputLabel, stoppingThreshold);
-			System.out.println("Decision Tree built!\n");
-
-			// PRINTING DECISION TREE
-			System.out
-			.println("Printing Decision Tree\n----------------------");
-			printDecisionTree(root, 0);
-
-			// TESTING DECISION TREE
-			System.out.println("\n\n\nTesting Decision  on TrainDataSet\n---------------------\n");
-			Double accuracy = FindDTreeAccuracy(trainDataSet, root); // outputLabel);
-			System.out.println("\n\n\nTesting Decision  on TestDataSet\n---------------------\n");
-			accuracy = FindDTreeAccuracy(testDataSet, root); // outputLabel);
+			boolean solveProb1 = true;
+			
+			if(solveProb1)
+			{
+				// SETTING DEFAULT LABEL
+				String defaultStr = trainDataSet.MajorityValue();
+	
+				// GETTING ALL FEATURES
+				ArrayList<Feature> features = new ArrayList<Feature>(trainDataSet.getFeatures());
+				features.remove(features.size() - 1);	// Removing the output feature from the list.
+	
+				// BUILDING DECISION TREE
+				root = BuildDecisionTree(features, trainDataSet, defaultStr, stoppingThreshold);
+	//			System.out.println("Decision Tree built!\n");
+	
+				// PRINTING DECISION TREE
+	//			System.out.println("Printing Decision Tree\n----------------------");
+				printDecisionTree(root, 0);
+				System.out.println("\n");
+	
+				// TESTING DECISION TREE
+	//			System.out.println("\n\n\nTesting Decision  on TestDataSet\n---------------------\n");
+				FindDTreeAccuracy(root, testDataSet, true);
+			}
+			else
+			{
+				// Solve Part 2 -- Make sure 'm' is set to '4'.
+				System.out.println("\n\n\nSTRATIFIED SAMPLING STARTS\n---------------------\n");
+				StratifiedSampling(stoppingThreshold, trainDataSet, testDataSet);
+			}
+			
 		}
 	}
 
+	private static final int NUM_ROUNDS = 10;
+	public static void StratifiedSampling(int stoppingThreshold, DataSet trainDataSet, DataSet testDataSet)
+	{
+		// Assumption: Output Feature is Binary.
+		
+		DiscreteFeature outputFeature = trainDataSet.getOutputFeature();
+		int outputIndex = outputFeature.getIndex();
+		int numOutputValues = outputFeature.getNumValues();
+		ArrayList<String> outputValues = outputFeature.getValues();
+		
+		DataSet[] dataSetArray = new DataSet [numOutputValues];
+		dataSetArray[0] = new DataSet(trainDataSet);	// Transferring the data set properties.
+		dataSetArray[1] = new DataSet(trainDataSet);
+		
+		for (Example e : trainDataSet)
+		{
+			if(e.get(outputIndex).equals(outputValues.get(0)))	// Match 1st label
+				dataSetArray[0].add(e);
+			else	// Match 2nd label
+				dataSetArray[1].add(e);
+		}
+		
+		Double firstLabelFraction = ((double) dataSetArray[0].size())/trainDataSet.size();
+		System.out.println("firstLabelFraction = " + firstLabelFraction);
+		
+		int [] trainingSetSize = {25, 50, 100};
+		
+		for (int i = 0; i < trainingSetSize.length; i++)
+		{
+			int newDataSetSize = trainingSetSize[i];
+			
+			int numFirstLabelInstances = (int) Math.round(newDataSetSize * firstLabelFraction);
+			int numSecondLabelInstances = newDataSetSize - numFirstLabelInstances;
+			
+			Double avgAccuracy = 0.0, minAccuracy = Double.MAX_VALUE, maxAccuracy = Double.MIN_VALUE;
+			
+			for (int round = 0 ; round < NUM_ROUNDS; round++)
+			{
+				// Prepare new data set
+				DataSet newDataSet = new DataSet(trainDataSet);	// Transferring the data set properties
+				
+				// Select FirstLabel Instances randomly
+				for(int f = 0 ; f < numFirstLabelInstances; f++)
+				{
+					newDataSet.add( dataSetArray[0].get( (int)(Math.random() * dataSetArray[0].size()) ) );
+				}
+				
+				// Select SecondLabel Instances randomly
+				for(int s = 0 ; s < numSecondLabelInstances; s++)
+				{
+					newDataSet.add( dataSetArray[1].get( (int)(Math.random() * dataSetArray[1].size()) ) );
+				}			
+				
+				// Now, build Decision Tree for this new data set
+				
+				// SETTING DEFAULT LABEL
+				String defaultStr = newDataSet.MajorityValue();
+				
+				// GETTING ALL FEATURES
+				ArrayList<Feature> features = new ArrayList<Feature>(newDataSet.getFeatures());
+				features.remove(features.size() - 1);	// Removing the output feature from the list.
+
+				// BUILDING DECISION TREE
+				DecisionTreeNode node = BuildDecisionTree(features, newDataSet, defaultStr, stoppingThreshold);
+
+				// FIND ACCURACY OF THIS TREE
+				Double accuracy = FindDTreeAccuracy(node, testDataSet, false);
+				
+				avgAccuracy += accuracy;
+				if(accuracy > maxAccuracy)
+					maxAccuracy = accuracy;
+				if(accuracy < minAccuracy)
+					minAccuracy = accuracy;
+				
+			}
+			
+			avgAccuracy =  avgAccuracy/NUM_ROUNDS; 
+			
+			System.out.println("\n================================" +
+								"\nCONFIGURATION: " + "m = " + stoppingThreshold + "\tTraining Set Size = " + trainingSetSize[i] +
+								"\nMin Accuracy = " + minAccuracy +
+								"\nMax Accuracy = " + maxAccuracy +
+								"\nAvg Accuracy = " + avgAccuracy +
+								"\n================================");
+			
+		}
+
+	}
+	
 	/**
 	 * Method to build Decision Tree
-	 * 
-	 * @param features
-	 *            Feature Set
-	 * @param examples
-	 *            Examples available
-	 * @param defaultStr
-	 *            Default Label
-	 * @param outputLabel
-	 *            Set of labels
 	 * @return Decision Tree Node
 	 */
-	public static DecisionTreeNode BuildDecisionTree(ArrayList<Feature> features, DataSet examples, String defaultStr, int stoppingThreshold) // Feature outputLabel, int stoppingThreshold)
+	public static DecisionTreeNode BuildDecisionTree(ArrayList<Feature> features, DataSet examples, String defaultStr, int stoppingThreshold)
 	{
-		examples.DescribeDataset();	// TODO: Testing. Remove it.
-		
 		// NO EXAMPLES
 		if (examples.size() == 0) // Take the majority of the parent node (which is passed as default)
 		{
@@ -129,7 +213,7 @@ public class DecisionTreeLearner
 
 		// ELSE, CHOOSE BEST FEATURE
 		Feature bestFeature = examples.ChooseBestFeature(features);// ,
-		// outputLabel);
+		
 
 		if (bestFeature == null) // In case, there are no features with positive Information Gain.
 			return (new DecisionTreeNode(majorityLabel));
@@ -156,14 +240,17 @@ public class DecisionTreeLearner
 
 		if (dataSetArray != null)
 		{
-			int arrayLen = dataSetArray.length;
-			node.labelCountArray = new int[arrayLen];
-			for(int i = 0; i < arrayLen; i++)
-				node.labelCountArray[i] = dataSetArray[i].size();
-				
-			for (int i = 0; i < arrayLen; i++)
+			int numBranches = dataSetArray.length;
+			int numOutputValues = dataSetArray[0].getOutputFeature().getNumValues();
+			node.labelCountArray = new int[numBranches][numOutputValues];
+			for(int i = 0; i < numBranches; i++)
 			{
-				DecisionTreeNode n = BuildDecisionTree(newFeatures, dataSetArray[i], majorityLabel, stoppingThreshold); // outputLabel, stoppingThreshold);
+				node.labelCountArray[i] = dataSetArray[i].getBreakUpOfOutputValues();	
+			}
+				
+			for (int i = 0; i < numBranches; i++)
+			{
+				DecisionTreeNode n = BuildDecisionTree(newFeatures, dataSetArray[i], majorityLabel, stoppingThreshold);
 				node.mChildNodeList.add(n);
 			}
 		}
@@ -174,10 +261,8 @@ public class DecisionTreeLearner
 	/**
 	 * Method to print the Decision Tree.
 	 * 
-	 * @param node
-	 *            Decision Tree Node
-	 * @param level
-	 *            Level of the Node in the Tree
+	 * @param node	 Decision Tree Node
+	 * @param level	 Level of the Node in the Tree
 	 */
 	public static void printDecisionTree(DecisionTreeNode node, int level)
 	{
@@ -185,16 +270,15 @@ public class DecisionTreeLearner
 
 		if (node.isLeaf) // If Leaf Node, i.e., Label Value in the node
 		{
-			System.out.print(node.leafValue);
+			System.out.print(" : " + node.leafValue);
 		}
 		else // Not a Leaf Node, i.e., Feature in the node
 		{
 			// Prepare Indentation
-			String spaceStr = "";
-//			for (int i = 0; i < 4 * level; i++)
-//				spaceStr += " ";
+			String spaceStr = ""; 
+			String tabSpace = "       "; // 7 whitespaces
 			for (int i = 0; i < level; i++)
-				spaceStr += "|    ";
+				spaceStr += "|" + tabSpace;
 
 			// Recursively print the Node value corresponding to the feature value.
 			if(node.feature.getType() == Feature.TYPE_NUMERIC)
@@ -202,10 +286,16 @@ public class DecisionTreeLearner
 				NumericFeature nf = (NumericFeature) node.feature;
 				Double threshold = nf.getThreshold();
 				
-				System.out.print("\n" + spaceStr + node.feature.getName() + " <= " + threshold + " : ");
+				System.out.print("\n" + spaceStr + node.feature.getName() + " <= " + threshold + " [ ");
+				for(int count : node.labelCountArray[0])
+					System.out.print(count + " ");
+				System.out.print("]");
 				printDecisionTree(node.mChildNodeList.get(0), level + 1);					
 				
-				System.out.print("\n" + spaceStr + node.feature.getName() + " > " + threshold + " : ");
+				System.out.print("\n" + spaceStr + node.feature.getName() + " > " + threshold + " [ ");
+				for(int count : node.labelCountArray[1])
+					System.out.print(count + " ");
+				System.out.print("]");
 				printDecisionTree(node.mChildNodeList.get(1), level + 1);
 			}
 			else	// DISCRETE
@@ -214,39 +304,25 @@ public class DecisionTreeLearner
 				int i = 0;
 				for(String value : df.getValues())
 				{
-//					System.out.print("\n" + spaceStr + node.feature.getName() + " = " + value + "[ ");
-//					for(int count : node.labelCountArray)
-//						System.out.print(count + " ");
-//					System.out.print("] : ");
-					System.out.print("\n" + spaceStr + node.feature.getName() + " = " + value + " : ");
+					System.out.print("\n" + spaceStr + node.feature.getName() + " = " + value + " [ ");
+					for(int count : node.labelCountArray[i])
+						System.out.print(count + " ");
+					System.out.print("]");
 					printDecisionTree(node.mChildNodeList.get(i++), level + 1);					
 				}
 			}
-
-			
-//			System.out.print("\n" + spaceStr + node.feature.getName() + " = "
-//					+ node.feature.getFirstValue() + " : ");
-//			printDecisionTree(node.firstValueNode, level + 1);
-//
-//			// Recursively print the Node value corresponding to the second feature value.
-//			System.out.print("\n" + spaceStr + node.feature.getName() + " = "
-//					+ node.feature.getSecondValue() + " : ");
-//			printDecisionTree(node.secondValueNode, level + 1);
 		}
 	}
 
 	/**
 	 * Method to find the accuracy of the induced Decision Tree
 	 * 
-	 * @param examples
-	 *            Test Examples
-	 * @param node
-	 *            Root of Decision Tree
-	 * @param outputLabel
-	 *            Output Labels
-	 * @return Accuracy of the Decision Tree
+	 * @param examples		Test Examples
+	 * @param node	 		Root of Decision Tree
+	 * @param outputLabel	Output Labels
+	 * @return 				Accuracy of the Decision Tree
 	 */
-	public static Double FindDTreeAccuracy(ArrayList<Example> examples, DecisionTreeNode root)// , Feature outputLabel)
+	public static Double FindDTreeAccuracy(DecisionTreeNode node, ArrayList<Example> examples, boolean printLogs)
 	{
 		if (examples.size() == 0) return 100.0;
 
@@ -260,7 +336,7 @@ public class DecisionTreeLearner
 			String expectedOutput = e.getLabel();
 
 			// Predict the output for this example
-			String predictedOutput = predictOutput(root, e);
+			String predictedOutput = predictOutput(node, e);
 
 			if (expectedOutput.equals(predictedOutput))
 				hits++;
@@ -268,40 +344,46 @@ public class DecisionTreeLearner
 			{
 				misses++;
 
-				if (misses == 1)
-					System.out
-					.println("FOLLOWING ARE INCORRECTLY CLASSIFIED TEST SET EXAMPLES: \n");
+//				if (misses == 1)
+//					System.out.println("FOLLOWING ARE INCORRECTLY CLASSIFIED TEST SET EXAMPLES: \n");
 
 				// Print the INCORRECTLY CLASSIFIED EXAMPLES
-				System.out.println(e.getName() + " : " + e
-						+ "\tExpected Output = " + expectedOutput
-						+ "\tPredicted Output = " + predictedOutput);
+//				System.out.println(e.getName() + " : " + e
+//						+ "\tExpected Output = " + expectedOutput
+//						+ "\tPredicted Output = " + predictedOutput);
+			}
+			
+			if(printLogs)
+			{
+				for (int i = 0; i < e.size() - 1; i ++)
+					System.out.print(e.get(i) + " ");
+				System.out.println("| " + predictedOutput + " | " + expectedOutput);
 			}
 		}
-
-		Double missFraction = ((double) (examples.size() - hits))
-				/ examples.size();
-		System.out
-		.println("\nFRACTION OF TEST SET EXAMPLES INCORRECTLY CLASSIFIED = [ "
-				+ missFraction + " ]");
+		
+//		Double missFraction = ((double) (examples.size() - hits))
+//				/ examples.size();
+//		System.out.println("\nFRACTION OF TEST SET EXAMPLES INCORRECTLY CLASSIFIED = [ "
+//				+ missFraction + " ]");
 
 		Double accuracy = ((double) hits * 100) / examples.size();
 
-		System.out.println("TEST SET ACCURACY = [ " + accuracy
-				+ "% ]\nTEST SET HIT COUNT = [ " + hits
-				+ " ]\nTEST SET EXAMPLES COUNT = [ " + examples.size() + " ]");
-		return 0.0;
+		if(printLogs)
+		{
+			System.out.println("\nCOUNT OF TOTAL TEST  INSTANCES = [ " + examples.size()
+					+ " ]\nCOUNT OF CORRECTLY CLASSIFIED TEST INSTANCE = [ " + hits
+					+ " ]\nTEST SET ACCURACY = [ " + accuracy + " % ]");
+		}
+		return accuracy;
 	}
 
 	/**
 	 * Method to predict the output of an example using already build
 	 * Decision-Tree.
 	 * 
-	 * @param node
-	 *            Decision Tree Node
-	 * @param e
-	 *            Example
-	 * @return Predicted Output Label
+	 * @param node	Decision Tree Node
+	 * @param e		Example
+	 * @return 		Predicted Output Label
 	 */
 	public static String predictOutput(DecisionTreeNode node, Example e)
 	{

@@ -1,8 +1,15 @@
 
+/**
+ * Class to represent a Numeric Feature.
+ * 
+ * @author Prakhar Panwaria
+ * @date 10/05/2013
+ * @hw 1
+ */
 
-public class NumericFeature extends Feature
+class NumericFeature extends Feature
 {
-	private Double mThreshold;
+	private Double mThreshold;	// Threshold Value on which we'll branch out in Decision Tree.
 	
 	public NumericFeature(NumericFeature f, Double threshold)
 	{

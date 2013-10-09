@@ -1,6 +1,14 @@
 import java.util.ArrayList;
 
-public class DiscreteFeature extends Feature
+/**
+ * Class to represent a Discrete Feature.
+ * 
+ * @author Prakhar Panwaria
+ * @date 10/05/2013
+ * @hw 1
+ */
+
+class DiscreteFeature extends Feature
 {
 	private int mNumValues;
 	private ArrayList<String> mValues = null;

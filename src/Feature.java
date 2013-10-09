@@ -1,6 +1,10 @@
 
 /**
- * Represents a single binary feature with two String values.
+ * Class to represent a single generalized feature.
+ *
+ * @author Prakhar Panwaria
+ * @date 10/05/2013
+ * @hw 1
  */
 class Feature 
 {
