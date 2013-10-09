@@ -75,15 +75,12 @@ public class DecisionTreeLearner
 	
 				// BUILDING DECISION TREE
 				root = BuildDecisionTree(features, trainDataSet, defaultStr, stoppingThreshold);
-	//			System.out.println("Decision Tree built!\n");
 	
 				// PRINTING DECISION TREE
-	//			System.out.println("Printing Decision Tree\n----------------------");
 				printDecisionTree(root, 0);
 				System.out.println("\n");
 	
 				// TESTING DECISION TREE
-	//			System.out.println("\n\n\nTesting Decision  on TestDataSet\n---------------------\n");
 				FindDTreeAccuracy(root, testDataSet, true);
 			}
 			else
@@ -343,14 +340,6 @@ public class DecisionTreeLearner
 			else
 			{
 				misses++;
-
-//				if (misses == 1)
-//					System.out.println("FOLLOWING ARE INCORRECTLY CLASSIFIED TEST SET EXAMPLES: \n");
-
-				// Print the INCORRECTLY CLASSIFIED EXAMPLES
-//				System.out.println(e.getName() + " : " + e
-//						+ "\tExpected Output = " + expectedOutput
-//						+ "\tPredicted Output = " + predictedOutput);
 			}
 			
 			if(printLogs)
@@ -360,11 +349,6 @@ public class DecisionTreeLearner
 				System.out.println("| " + predictedOutput + " | " + expectedOutput);
 			}
 		}
-		
-//		Double missFraction = ((double) (examples.size() - hits))
-//				/ examples.size();
-//		System.out.println("\nFRACTION OF TEST SET EXAMPLES INCORRECTLY CLASSIFIED = [ "
-//				+ missFraction + " ]");
 
 		Double accuracy = ((double) hits * 100) / examples.size();
 

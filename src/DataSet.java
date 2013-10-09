@@ -58,6 +58,8 @@ class DataSet extends ArrayList<Example>
 			}
 		});
 
+		// Mapping feature values with a group label, which will be marked
+		// as 'null' in case there is a mix of labels.
 		int outputIndex = getOutputIndex();
 		LinkedHashMap<String, String> groupLabelMap = new LinkedHashMap<String, String>();
 		for (Example e : sortedExampleList)
@@ -75,7 +77,6 @@ class DataSet extends ArrayList<Example>
 				groupLabelMap.put(curFeatureValue, e.get(outputIndex));
 		}
 		
-//		System.out.println("################################# FeatureName:" + f.getName() + " GroupLabelMap.size() : " + groupLabelMap.size());
 		int i = 0;
 		String prevGroupLabel = "";
 		Double prevVal = 0.0;
@@ -103,35 +104,7 @@ class DataSet extends ArrayList<Example>
 			prevGroupLabel = curGroupLabel;
 			
 			i++;
-//		    System.out.println(entry.getKey() + " --> " + entry.getValue());
 		}
-//		System.out.println("#################################");
-		
-		/*
-		// Splitting everytime we see the change in labels in the sorted examples list.
-		Example prevExample = sortedExampleList.get(0);
-		String prevOutputLabel = prevExample.get(outputIndex);
-		for(int i = 1; i < sortedExampleList.size(); i++)
-		{
-			Example curExample = sortedExampleList.get(i);
-			String currentOutputLabel = curExample.get(outputIndex);
-			if(!currentOutputLabel.equals(prevOutputLabel))
-			{
-				// Finding midpoint
-				Double curVal =  Double.parseDouble(curExample.get(featureIndex));
-				Double prevVal = Double.parseDouble(prevExample.get(featureIndex));
-				Double threshold = (prevVal + curVal)/2;
-				
-				if(splitList.size() == 0 || splitList.get(splitList.size() - 1).compareTo(threshold) != 0)	// Ignore Repeated Threshold
-				{
-					splitList.add(threshold);
-				}
-			}
-			
-			prevExample = curExample;
-			prevOutputLabel = currentOutputLabel;
-		}
-	   */
 		
 		return splitList;
 	}
@@ -184,13 +157,11 @@ class DataSet extends ArrayList<Example>
 	 */
 	public Feature ChooseBestFeature(ArrayList<Feature> features)	//, Feature outputLabel)
 	{
-//		Feature outputLabel = getOutputFeature();
 		
 		// FIND FEATURE WITH MAX INFORMATION GAIN
 		// 	- For Numeric Feature, find candidate splits and calculate Information Gain for every spilt
 		//	- If Information Gain Match, Choose feature with less index.
 		// 	- If Numeric Feature is the best feature, clone that feature and add a threshold to it.
-//		Double minRemainder = 2.0;
 		Feature bestFeature = null;
 		Double maxInfoGain = Double.MIN_VALUE;
 		
@@ -198,7 +169,6 @@ class DataSet extends ArrayList<Example>
 		{
 			
 			Double infoGain = 0.0;
-//			Double maxThreshold = Double.MIN_VALUE;
 					
 			if(feature.getType() == Feature.TYPE_NUMERIC)
 			{
@@ -235,47 +205,6 @@ class DataSet extends ArrayList<Example>
 		}
 		
 		return bestFeature;
-			
-			/*
-			DataSet firstValueExamples = examplesForFeatureFirstValue(feature);
-			long firstValueFirstLabelExampleCount = firstValueExamples
-					.FirstValueCount(outputLabel);
-			long firstValueSecondLabelExampleCount = firstValueExamples.size()
-					- firstValueFirstLabelExampleCount;
-
-			DataSet secondValueExamples = examplesForFeatureSecondValue(feature);
-			long secondValueFirstLabelExampleCount = secondValueExamples
-					.FirstValueCount(outputLabel);
-			long secondValueSecondLabelExampleCount = secondValueExamples
-					.size() - secondValueFirstLabelExampleCount;
-
-			// Calculate the Remainder value of the feature.
-			Double tempRemainder = (((double) firstValueExamples.size() / size()) * IFunc(
-					firstValueFirstLabelExampleCount,
-					firstValueSecondLabelExampleCount))
-					+ (((double) secondValueExamples.size() / size()) * IFunc(
-							secondValueFirstLabelExampleCount,
-							secondValueSecondLabelExampleCount));
-
-			if (tempRemainder.compareTo(minRemainder) == 0)
-			{
-				// Choose feature alphabetically - feature and the bestFeature
-				int result = bestFeature.getName().compareTo(
-						feature.getName());
-				if (result > 0) // i.e. feature is alphabetically smaller than
-								// bestFeature.
-					bestFeature = feature;
-			}
-			else if (tempRemainder.compareTo(minRemainder) < 0)
-			{
-				// Update the best feature
-				minRemainder = tempRemainder;
-				bestFeature = feature;
-			}
-		}
-
-		return bestFeature;
-		*/
 	}
 
 	/**
@@ -356,11 +285,9 @@ class DataSet extends ArrayList<Example>
 		String majValue = "";
 		int count, maxCount = -1;
 		
-//		System.out.println("Data Set = " + mDataSetName + " DataSetSize =" + size() + " #OutputLabels=" + outputLabel.getNumValues());
 		for (String value : outputLabel.getValues())
 		{
 			count = getCountOfExamplesWithGivenOutputValue(value);
-//	    	System.out.println("Label = " + value + "\tCount = " + count);
 	    	
 			if(count > maxCount)
 			{
@@ -438,13 +365,6 @@ class DataSet extends ArrayList<Example>
 		}
 	}
 
-	// Print out the SPECIFIED example.
-	public void PrintThisExample(int i)
-	{
-		Example thisExample = this.get(i);
-		thisExample.PrintFeatures();
-	}
-
 	// Returns the number of mFeaturesArray in the data.
 	public int getNumberOfFeatures()
 	{
@@ -454,19 +374,15 @@ class DataSet extends ArrayList<Example>
 	public ArrayList<Feature> getFeatures()
 	{
 		return mFeatures;
-//		return mFeaturesArray;
 	}
 
 	// Returns the name of the ith feature.
 	public String getFeatureName(int i)
 	{
 		return mFeatures.get(i).getName();
-//		return mFeaturesArray[i].getName();
 	}
 
-	// Takes the name of an input file and attempts to open it for parsing.
-	// If it is successful, it reads the dataset into its internal structures.
-	// Returns true if the read was successful.
+	// Parsing data set and storing in relevant data struvtures. 
 	public boolean ReadInExamplesFromFile(String dataFile)
 	{
 		mDataSetName = dataFile;
@@ -547,7 +463,6 @@ class DataSet extends ArrayList<Example>
 				if(keyParts.get(2).equals("real"))	// Numeric Feature
 				{
 					f = new NumericFeature(fName, mNumFeatures);
-//					System.out.println("Added Numeric Feature" + f.getName());
 				}
 				else
 				{
@@ -556,7 +471,6 @@ class DataSet extends ArrayList<Example>
 						values.add(keyParts.get(i));
 					
 					f = new DiscreteFeature(fName, mNumFeatures, values.size(), values);
-//					System.out.println("Added Discrete Feature" + f.getName());
 				}
 				
 				mFeatures.add(f);
@@ -597,8 +511,6 @@ class DataSet extends ArrayList<Example>
 		for (int i = 0; i < size(); i++)
 		{
 			Example e = get(i);
-			
-//			System.out.println("FeatureValueinExample = " + e.get(featureIndex) + "\tThreshold=" + threshold);
 			
 			Double value = Double.parseDouble(e.get(featureIndex));
 			

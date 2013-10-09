@@ -46,29 +46,6 @@ class Feature
 	  public void setIndex(int index)
 	  {
 		  mIndex = index;
-	  }
-	  
-	  // TODO: To remove.
-	  
-	  public Feature(String name, String first, String second) 
-	  {
-	    this.name = name;
-	    firstValue = first;
-	    secondValue = second;
-	  }
-	  
-	  private String firstValue;
-	  private String secondValue;
-	  
-	  public String getFirstValue()
-	  {
-	    	return firstValue;
-	  }
-	
-	  public String getSecondValue() 
-	  {
-		  return secondValue;
-	  }
-	  
+	  }	  
 }
 
